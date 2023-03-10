@@ -29,12 +29,15 @@ func main() {
 
 	// First-come, first-serve scheduling
 	FCFSSchedule(os.Stdout, "First-come, first-serve", processes)
-
-	//SJFSchedule(os.Stdout, "Shortest-job-first", processes)
-	//
-	//SJFPrioritySchedule(os.Stdout, "Priority", processes)
-	//
-	//RRSchedule(os.Stdout, "Round-robin", processes)
+	
+	//Shortest Job First Scheduling
+	SJFSchedule(os.Stdout, "Shortest-job-first", processes)
+	
+	//SJF Priority Scheduling
+	SJFPrioritySchedule(os.Stdout, "Priority", processes)
+	
+	//Round-robin (RR) Scheduling
+	RRSchedule(os.Stdout, "Round-robin", processes)
 }
 
 func openProcessingFile(args ...string) (*os.File, func(), error) {
