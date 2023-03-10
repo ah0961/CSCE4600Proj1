@@ -303,6 +303,91 @@ func SJFSchedule(w io.Writer, title string, processes []Process) {
 
 
 //func RRSchedule(w io.Writer, title string, processes []Process) { }
+//RRSchedule outputs a schedule of processes in a GANTT chart and a table of timing given:
+func RRSchedule(w io.Writer, title string, processes []Process, quantum int64) {
+	var (
+		totalWait       float64
+		totalTurnaround float64
+		lastCompletion  float64
+		currentTime     int64
+		remainingTime   int64
+		waitingTime     int64
+		activeProcess   *Process
+		processQueue    = make([]Process, 0)
+		schedule        = make([][]string, len(processes))
+		gantt           = make([]TimeSlice, 0)
+	)
+
+	// Adding all processes to the queue
+	for i := range processes {
+		processQueue = append(processQueue, processes[i])
+	}
+
+	// This will execute processes in the queue
+	for len(processQueue) > 0 {
+		activeProcess = &processQueue[0]
+		processQueue = processQueue[1:]
+
+		// If the process hasn't started yet
+		if activeProcess.ArrivalTime > currentTime {
+			waitingTime = activeProcess.ArrivalTime - currentTime
+			currentTime = activeProcess.ArrivalTime
+		} else {
+			waitingTime = 0
+		}
+
+		if activeProcess.BurstDuration > quantum {
+			// If process is preempted
+			remainingTime = activeProcess.BurstDuration - quantum
+			activeProcess.BurstDuration = quantum
+			processQueue = append(processQueue, *activeProcess)
+		} else {
+			// If process completes execution
+			remainingTime = 0
+		}
+
+		start := currentTime
+		currentTime += activeProcess.BurstDuration
+		turnaround := waitingTime + activeProcess.BurstDuration
+		totalTurnaround += float64(turnaround)
+		lastCompletion = float64(currentTime)
+		totalWait += float64(waitingTime)
+
+		schedule[activeProcess.ProcessID-1] = []string{
+			fmt.Sprint(activeProcess.ProcessID),
+			fmt.Sprint(activeProcess.Priority),
+			fmt.Sprint(activeProcess.BurstDuration),
+			fmt.Sprint(activeProcess.ArrivalTime),
+			fmt.Sprint(waitingTime),
+			fmt.Sprint(turnaround),
+			fmt.Sprint(currentTime),
+		}
+		
+		//this adds process to the gantt chart
+		gantt = append(gantt, TimeSlice{
+			PID:   activeProcess.ProcessID,
+			Start: start,
+			Stop:  currentTime,
+		})
+
+		activeProcess.BurstDuration = remainingTime
+		if remainingTime > 0 {
+			processQueue = append(processQueue, *activeProcess)
+		}
+	}
+
+	//calculate average waiting time, average turnaround time, and average throughput
+	count := float64(len(processes))
+	aveWait := totalWait / count
+	aveTurnaround := totalTurnaround / count
+	aveThroughput := count / lastCompletion
+	//calling function to output results to writer
+	outputTitle(w, title)
+	outputGantt(w, gantt)
+	outputSchedule(w, schedule, aveWait, aveTurnaround, aveThroughput)
+}
+
+//end of RRSchedule
 
 //endregion
 
