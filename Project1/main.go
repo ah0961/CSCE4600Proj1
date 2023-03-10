@@ -131,7 +131,78 @@ func FCFSSchedule(w io.Writer, title string, processes []Process) {
 }
 
 //func SJFPrioritySchedule(w io.Writer, title string, processes []Process) { }
-//
+//SJFPrioritySchedule outputs a schedule of processes in a GANTT chart and a table of timing given:
+func SJFPrioritySchedule(w io.Writer, title string, processes []Process) {
+	// Initialize variables for calculating scheduling statistics
+	var (
+		serviceTime     int64
+		totalWait       float64
+		totalTurnaround float64
+		lastCompletion  float64
+		waitingTime     int64
+	)
+
+	// Initialize data structures for generating Gantt chart and schedule table
+	schedule := make([][]string, len(processes))
+	gantt := make([]TimeSlice, 0)
+
+	// Sort the processes by burst duration and priority
+	sort.SliceStable(processes, func(i, j int) bool {
+		if processes[i].BurstDuration == processes[j].BurstDuration {
+			return processes[i].Priority < processes[j].Priority
+		}
+		return processes[i].BurstDuration < processes[j].BurstDuration
+	})
+
+	// Loop through the sorted processes to execute them in order
+	for i := range processes {
+		// Calculate waiting time
+		if processes[i].ArrivalTime > 0 {
+			waitingTime = serviceTime - processes[i].ArrivalTime
+		}
+		totalWait += float64(waitingTime)
+
+		// Calculate start time, turnaround time, and completion time
+		start := waitingTime + processes[i].ArrivalTime
+		turnaround := processes[i].BurstDuration + waitingTime
+		totalTurnaround += float64(turnaround)
+		completion := processes[i].BurstDuration + processes[i].ArrivalTime + waitingTime
+		lastCompletion = float64(completion)
+
+		// Add process information to the schedule table
+		schedule[i] = []string{
+			fmt.Sprint(processes[i].ProcessID),
+			fmt.Sprint(processes[i].Priority),
+			fmt.Sprint(processes[i].BurstDuration),
+			fmt.Sprint(processes[i].ArrivalTime),
+			fmt.Sprint(waitingTime),
+			fmt.Sprint(turnaround),
+			fmt.Sprint(completion),
+		}
+
+		// Add process to Gantt chart
+		gantt = append(gantt, TimeSlice{
+			PID:   processes[i].ProcessID,
+			Start: start,
+			Stop:  serviceTime + processes[i].BurstDuration,
+		})
+
+		// Increment service time by the process's burst duration
+		serviceTime += processes[i].BurstDuration
+	}
+
+	// Calculate scheduling statistics
+	count := float64(len(processes))
+	aveWait := totalWait / count
+	aveTurnaround := totalTurnaround / count
+	aveThroughput := count / lastCompletion
+
+	// Output results to the provided writer
+	outputTitle(w, title)
+	outputGantt(w, gantt)
+	outputSchedule(w, schedule, aveWait, aveTurnaround, aveThroughput)
+}
+// end of SJFP
 
 
 //func SJFSchedule(w io.Writer, title string, processes []Process) { }
