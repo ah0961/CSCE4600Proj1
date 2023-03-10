@@ -132,8 +132,80 @@ func FCFSSchedule(w io.Writer, title string, processes []Process) {
 
 //func SJFPrioritySchedule(w io.Writer, title string, processes []Process) { }
 //
+
+
 //func SJFSchedule(w io.Writer, title string, processes []Process) { }
-//
+// SJFSchedule outputs a schedule of processes in a GANTT chart and a table of timing given:
+func SJFSchedule(w io.Writer, title string, processes []Process) {
+	var (
+		serviceTime     int64
+		totalWait       float64
+		totalTurnaround float64
+		lastCompletion  float64
+		waitingTime     int64
+		schedule        = make([][]string, len(processes))
+		gantt           = make([]TimeSlice, 0)
+	)
+	// sort processes by their burst duration
+	sort.Slice(processes, func(i, j int) bool {
+		return processes[i].BurstDuration < processes[j].BurstDuration
+	})
+	
+	//scheduling processes
+	for i := range processes {
+		//calculating waiting time for each process
+		if processes[i].ArrivalTime > 0 {
+			waitingTime = serviceTime - processes[i].ArrivalTime
+		}
+		//adding wait time to total wait time
+		totalWait += float64(waitingTime)
+
+		//calculate start time for each process
+		start := waitingTime + processes[i].ArrivalTime
+		
+		//calculates turnaround time for each process
+		turnaround := processes[i].BurstDuration + waitingTime
+		totalTurnaround += float64(turnaround)
+		
+		//calculate the completion time for each process
+		completion := processes[i].BurstDuration + processes[i].ArrivalTime + waitingTime
+		lastCompletion = float64(completion)
+
+		schedule[i] = []string{
+			fmt.Sprint(processes[i].ProcessID),
+			fmt.Sprint(processes[i].Priority),
+			fmt.Sprint(processes[i].BurstDuration),
+			fmt.Sprint(processes[i].ArrivalTime),
+			fmt.Sprint(waitingTime),
+			fmt.Sprint(turnaround),
+			fmt.Sprint(completion),
+		}
+		serviceTime += processes[i].BurstDuration
+
+		//this adds process to the gantt chart
+		gantt = append(gantt, TimeSlice{
+			PID:   processes[i].ProcessID,
+			Start: start,
+			Stop:  serviceTime,
+		})
+	}
+
+	//calculate average waiting time, average turnaround time, and average throughput
+	count := float64(len(processes))
+	aveWait := totalWait / count
+	aveTurnaround := totalTurnaround / count
+	aveThroughput := count / lastCompletion
+
+	//calling function to output results to writer
+	outputTitle(w, title)
+	outputGantt(w, gantt)
+	outputSchedule(w, schedule, aveWait, aveTurnaround, aveThroughput)
+}
+// end of SJSF Scheduler
+
+
+
+
 //func RRSchedule(w io.Writer, title string, processes []Process) { }
 
 //endregion
